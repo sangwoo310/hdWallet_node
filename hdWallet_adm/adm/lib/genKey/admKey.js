@@ -1,9 +1,9 @@
-const util = require('../utils/util');
+const commUtil = require('../utils/commUtil');
 const keyList = require('./keyList');
 
 module.exports = {
     genKey : async () => {
-        let generalate = util.genRanNum();
+        let generalate = commUtil.genRanNum();
         return generalate;
     },
 

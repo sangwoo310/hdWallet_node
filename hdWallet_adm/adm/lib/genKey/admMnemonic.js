@@ -1,11 +1,6 @@
 const Mnemonic = require('bitcore-mnemonic');
 const wordlist = require('bitcore-mnemonic/lib/words/english');
 
-let mnemonic
-let mnemonicString
-let store
-
-
 module.exports = {
     newEntropy : (entropy) => {
         var bin = '';
