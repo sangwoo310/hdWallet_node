@@ -154,7 +154,7 @@ const dbUpdate = async (txInfo, blockNumber) => {
     
                 let fromAddr = _txInfo.vout[txInfo.vin[i].vout].scriptPubKey.addresses[0];
     
-                let query1 = { blockNumber : blockNumber, txId : txid, address : fromAddr, useYN : "N"}
+                let query1 = { txId : txid, address : fromAddr, useYN : "N"}
                 let query2 = { $set : { useYN : "Y" } }
                 
                 await utxoDB("update", query1, query2).catch(e => {
@@ -216,6 +216,7 @@ const listenBlock = async (blockNumber) => {
         console.log("!!! dbBlock is higher then core Block !!!");
         process.exit(9);
     } else {
+        let tempArr = [];
         let blockHash = await getBlockHash(blockNumber)
         let blockInfo = await getBlock(blockHash)
         
@@ -227,18 +228,13 @@ const listenBlock = async (blockNumber) => {
             let txInfo = await decodeRawTransaction(rawTx).catch(e => {
                 reject(e);
             });
+            tempArr[i] = txInfo;
             await dbInsert(txInfo, blockInfo.height);
         }
 
-        for(let i=0; i<blockInfo.tx.length; i++) {
-            console.log("blockNumber is " + blockNumber + " == " + blockInfo.tx.length + " :: " + i);
-            let rawTx = await getRawTransaction(blockInfo.tx[i]).catch(e => {
-                reject(e);
-            });
-            let txInfo = await decodeRawTransaction(rawTx).catch(e => {
-                reject(e);
-            });
-            await dbUpdate(txInfo, blockInfo.height);
+        for(let i=0; i<tempArr.length; i++) {
+            console.log("blockNumber is " + blockNumber + " == " + tempArr.length + " :: " + i);
+            await dbUpdate(tempArr[i], blockInfo.height);
         }
         await listenBlock(blockNumber+1);
     }
