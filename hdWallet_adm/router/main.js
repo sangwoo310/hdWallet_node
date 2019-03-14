@@ -6,6 +6,15 @@ module.exports = (app) => {
     app.post('/close', (req, res) => {
         process.exit(0);
     });
+
+
+    app.post('/liveCheck', (req, res) => {
+        let resObj = {
+            code : 0,
+            message : true
+        }
+        res.end(JSON.stringify(resObj));
+    });
     
 
     app.post('/createWallet', async (req, res) => {
@@ -15,7 +24,7 @@ module.exports = (app) => {
 		let walletData = await adm.createWallet(coin, passwd);
 		await res.send(JSON.stringify(walletData));
 		
-		// commUtil.taskKill();
+		commUtil.taskKill();
     });
 
 
