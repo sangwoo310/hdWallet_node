@@ -14,7 +14,7 @@ const Utxo = new Schema(
 
 
 // create indices
-Utxo.index({blockNumber:-1});
+Utxo.index( { address : 1 } );
 
 mongoose.model('Utxo', Utxo);
 module.exports.Utxo = mongoose.model('Utxo');
