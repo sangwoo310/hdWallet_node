@@ -149,12 +149,9 @@ const dbUpdate = async (txInfo, blockNumber) => {
                 console.log("!!! reward Transaction !!!")
             } else {
                 let txid = txInfo.vin[i].txid;
-                let rawTx = await getRawTransaction(txid);
-                let _txInfo = await decodeRawTransaction(rawTx);
+                let voutIndex = txInfo.vin[i].vout;
     
-                let fromAddr = _txInfo.vout[txInfo.vin[i].vout].scriptPubKey.addresses[0];
-    
-                let query1 = { txId : txid, address : fromAddr, useYN : "N"}
+                let query1 = { txId : txid, outputIndex : voutIndex, useYN : "N"}
                 let query2 = { $set : { useYN : "Y" } }
                 
                 await utxoDB("update", query1, query2).catch(e => {
@@ -196,7 +193,7 @@ const initCheck = async () => {
     let dbLatestBlock = await Utxo.find().sort('-blockNumber').limit(1);
     
     if(dbLatestBlock.length == 0) {
-        listenBlock(478559);
+        listenBlock(0);
     } else {
         console.log("*** db remove start ***");
         let query = { blockNumber : dbLatestBlock[0].blockNumber };
