@@ -11,14 +11,15 @@ const config = require('../lib/utils/config');
 
 module.exports = {
     btcSignTx : async (from, to, amt, fromPk) => {
-        let insight;
 
+        let insight;
         insight = await new explorers.Insight('https://insight.bitpay.com');  //btc mainnet
         // insight = new explorers.Insight('https://tetst-insight.bitpay.com');  //btc testnet
-
         return new Promise((resolve, reject) => {
             console.log(fromPk)
             console.log(typeof from)
+            console.log(from)
+            
             insight.getUnspentUtxos(from, function(err, docs){
                 if(err) {
                     reject(err);
@@ -27,43 +28,53 @@ module.exports = {
 
                     for(let i=0; i<docs.length; i++) {
                         let utxo = {}
-       
+
                         utxo.txId = docs[i].txId;
                         utxo.outputIndex = docs[i].outputIndex;
                         utxo.script = docs[i].script.toString();
                         utxo.satoshis = docs[i].satoshis;
-    
+
                         utxos.push(utxo);
                     }
+
+                    console.log('utxo   :   '+utxos);
+                    console.log('docs   :   '+docs);
                     
                     let pk = new bitcore.PrivateKey(fromPk)
 
-                    let tx = new bitcore.Transaction().from(utxos)
-                    .to(to, amt*(10**8)) // toAddr, amt(satoshis)
-                    .change(from) // return amt addr
-                    .fee(35000)
-                    .sign(pk)
-    //                .serialize()
+                    try {
+                        let tx = new bitcore.Transaction().from(utxos)
+                        .to(to, amt*(10**8)) // toAddr,amt(satoshis)
+                        .change(from) // return amt addr
+                        .fee(35000)
+                        .sign(pk)
 
-                    resolve(tx);
+                        resolve(tx);
+                    } catch(e) {
+                        reject(e);
+                    }
                 }
             });
-		});        
+        });
     },
 
     bchSignTx : async (from, to, amt, fromPk) => {
         return new Promise((resolve, reject) => {
             bitbox.Address.utxo(from).then(utxos => {
                 console.log(utxos);
+                
                 let pk = new bchLib.PrivateKey(fromPk)
-                let tx = new bchLib.Transaction()
-                .from(utxos)
-                .to(to, amt*(10**8))
-                .change(from)
-                .fee(35000)
-                .sign(pk)
-
-                resolve(tx)
+                try {
+                    let tx = new bchLib.Transaction()
+                    .from(utxos)
+                    .to(to, amt*(10**8))
+                    .change(from)
+                    .fee(35000)
+                    .sign(pk)
+                    resolve(tx)
+                } catch(e) {
+                    reject(e);
+                }
             }).catch(e => {
                 console.log(e)
                 reject(e);
@@ -76,33 +87,36 @@ module.exports = {
     },
 
     ethSignTx : async (coin, from, to, amt, pk) => {
-        let txParams = {
-            nonce : '',
-            gasPrice : '0xba43b7400',
-            gasLimit : '0x61a80',
-            to : '',
-            value : ''
+        try {
+            let txParams = {
+                nonce : '',
+                gasPrice : '0xba43b7400',
+                gasLimit : '0x61a80',
+                to : '',
+                value : ''
+            }
+            console.log('from : '+ from);
+            txParams.nonce = "0x" + await commUtil.fetch('http://0.0.0.0:7500/'+from, 'GET')
+            .catch(e => { 
+                throw e;
+            });
+            txParams.to = to;
+            txParams.value = "0x" + (amt*(10**18)).toString(16);
+            
+            let tx = new ethTx(txParams);
+            let privKey = Buffer.from(pk, 'hex');
+            tx.sign(privKey);
+            let serializedTx = tx.serialize();
+            let rawTx = '0x'+serializedTx.toString('hex');
+
+            return rawTx;
+        } catch (e) {
+            throw e;
         }
-
-        txParams.nonce = "0x" + await commUtil.fetch('http://211.214.183.85:7500/'+from, 'GET')
-        .catch(e => {
-            console.log("!!! fetch Error !!!\n" + e);
-            return true;
-        });
-        txParams.to = to;
-        txParams.value = "0x" + (amt*(10**18)).toString(16);
-        
-        let tx = new ethTx(txParams);
-        let privKey = Buffer.from(pk, 'hex');
-        tx.sign(privKey);
-        let serializedTx = tx.serialize();
-        let rawTx = '0x'+serializedTx.toString('hex');
-
-        return rawTx;
     },
 
     ethSendTx : async (rawTx) => {
-        let txId = await commUtil.fetch('http://211.214.183.85:7500/rawTx', 'POST')
+        let txId = await commUtil.fetch('http://0.0.0.0:7500/rawTx', 'POST')
         .catch(e => {
             console.log("!!! fetch Error !!!\n"+e);
             return e;
@@ -116,17 +130,20 @@ module.exports = {
         let obj = {
             rawTx : rawTx
         }
-        let txId = await commUtil.fetch(sendUrl, 
-            {   
+        let txId = await commUtil.fetch(sendUrl, {   
                 method:'POST', 
                 body:JSON.stringify(obj),
                 headers: { 'Content-Type': 'application/json' }
-            })
-        .catch(e => {
+            }
+        ).catch(e => {
             console.log("!!! fetch Error !!!\n"+e);
             return e;
         });
 
-        return txId;
+        if(txId.error != null) {
+            throw txId.error;
+        }
+
+        return txId.result;
     }
 }
